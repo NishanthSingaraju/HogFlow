@@ -8,6 +8,7 @@ import AddIcon from '@mui/icons-material/Add';
 import IconButton from '@mui/material/IconButton';
 import RemoveCircleIcon from '@mui/icons-material/RemoveCircle';
 import Button from '@mui/material/Button';
+import axios from 'axios'
 
 class DynamicForm extends React.Component {
   constructor(props) {
@@ -21,8 +22,6 @@ class DynamicForm extends React.Component {
   
   handleChange(i, e) {
     let formValues = this.state.formValues;
-    console.log(i)
-    console.log(formValues[0])
     formValues[e.props.index][e.props.name] = e.props.value;
     this.setState({ formValues });
     console.log(formValues)
@@ -41,7 +40,13 @@ class DynamicForm extends React.Component {
   }
 
   handleSubmit(i, event) {
-    alert(JSON.stringify(this.state.formValues));
+    const request = {conditions: JSON.stringify(this.state.formValues)};
+    axios.put("http://localhost:5000/api/URL", request)
+        .then(response => this.props.updateUrl(response.data.url)).catch(error => {
+            console.error('There was an error!', error);
+        });;
+        
+    
   }
 
   render() {
