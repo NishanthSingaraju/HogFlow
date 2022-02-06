@@ -7,7 +7,7 @@ from google.cloud import storage
 import google.auth
 import re
 import glob
-import time
+
 
 
 credentials, project = google.auth.default()
@@ -105,6 +105,7 @@ def simulate(layers, state, queue, iterations, bands, tiff_metadata, conditions,
         while queue:
             node = queue[-1]
             neighbors = pixel_neighbours(state, node)
+            print(len(neighbors))
             for nei in neighbors:
                 if (nei[0], nei[1]) in visited:
                     continue
@@ -154,7 +155,7 @@ def thread_model(bounding_boxes, conditions=CONDITIONS):
                 queue.append((i, ry))
             for i in range(ly,ry):
                 queue.append((lx, i))
-                queue.append((ly, i))
+                queue.append((rx, i))
         simulate(layers=data,
                  state=state,
                  queue=queue,
@@ -183,12 +184,36 @@ def get_ee_layer(image):
 
 def get_tile_url(id):
     ic = ee.Image(create_ic("gs://nish-earthengine/data").get(id))
+    ic = ic.mask(ic)
     return get_ee_layer(ic)
+
+def get_sentinel():
+    def maskS2clouds(image):
+        qa = image.select('QA60')
+        cloudBitMask = 1 << 10
+        cirrusBitMask = 1 << 11
+        mask = qa.bitwiseAnd(cloudBitMask).eq(0).And(qa.bitwiseAnd(cirrusBitMask).eq(0))
+        return image.updateMask(mask).divide(10000)
+
+    NC = get_bounds()
+    dataset = ee.ImageCollection('COPERNICUS/S2_SR')\
+        .filterDate('2020-01-01', '2020-03-30')\
+        .filterBounds(NC).filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))\
+        .map(maskS2clouds)
+
+    viz = {
+        "min": 0.0,
+        "max": 0.3,
+        "bands": ['B4', 'B3', 'B2'],
+    }
+    image = dataset.median().clip(NC)
+    return image.getMapId(viz)['tile_fetcher'].url_format
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     bounding_boxes = [[(-79.81, 35.938), (-79.524, 35.661)]]
-    thread_model(bounding_boxes)
+    print(get_tile_url(1))
+    print(get_sentinel())
 
 
 

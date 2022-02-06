@@ -1,5 +1,6 @@
 .App {
   text-align: center;
+  margin: 5%;
 }
 
 .App-logo {
@@ -27,6 +28,12 @@
 .App-link {
   color: #61dafb;
 }
+
+.card_map{
+  display: inline-block;
+  margin: 2%;
+}
+
 
 @keyframes App-logo-spin {
   from {
