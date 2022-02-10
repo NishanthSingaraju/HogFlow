@@ -9,6 +9,7 @@ import IconButton from '@mui/material/IconButton';
 import RemoveCircleIcon from '@mui/icons-material/RemoveCircle';
 import Button from '@mui/material/Button';
 import axios from 'axios'
+import TextField from '@mui/material/TextField';
 
 class DynamicForm extends React.Component {
   constructor(props) {
@@ -45,13 +46,17 @@ class DynamicForm extends React.Component {
         .then(response => this.props.updateUrl(response.data.url)).catch(error => {
             console.error('There was an error!', error);
         });;
-        
-    
+         
   }
 
+ 
   render() {
     return (
         <form  onSubmit={this.handleSubmit}>
+          <Box display="flex" style={{flexDirection: "column nowrap", justifyContent: "space-evenly"}}>
+         <TextField id="outlined-basic" label="Coordinates" variant="outlined"/>
+         <Button variant="contained" component="span">Upload</Button>
+         </Box>
           {this.state.formValues.map((element, index) => (
             <div className="form-inline" key={index}>
             <Box display="flex" style={{flexDirection: "column nowrap", justifyContent: "space-evenly", padding: 6}}>
@@ -79,6 +84,7 @@ class DynamicForm extends React.Component {
                     >
                     <MenuItem index= {index} name= {"rule"} value={"<"}>Greater Than</MenuItem>
                     <MenuItem index= {index} name= {"rule"} value={">"}>Less Than</MenuItem>
+                    <MenuItem index= {index} name= {"rule"} value={"="}>=</MenuItem>
                     </Select>
                 </FormControl>
             </Box>

@@ -7,8 +7,7 @@ from google.cloud import storage
 import google.auth
 import re
 import glob
-
-
+import pandas as pd
 
 credentials, project = google.auth.default()
 
@@ -53,14 +52,17 @@ def satisfy_conditions(node, nei, layers, bands, conditions):
         band,rule = parse_condition(condition)
         pos = get_band_index(bands,band)
         layer = layers[pos]
-        if rule == "<":
-            if layer[node[1]][node[0]] > layer[nei[1]][nei[0]]:
-                return False
-        elif rule == ">":
-            if layer[node[1]][node[0]] < layer[nei[1]][nei[0]]:
-                return False
-        else:
-            continue
+        try:
+            if rule == "<":
+                if layer[node[1]][node[0]] > layer[nei[1]][nei[0]]:
+                    return False
+            elif rule == ">":
+                if layer[node[1]][node[0]] < layer[nei[1]][nei[0]]:
+                    return False
+            else:
+                continue
+        except:
+            return False
     return True
 
 def upload_blob(bucket_name, source_file_name, destination_blob_name):
@@ -97,15 +99,24 @@ def files_in_dir(dir_path: str, extension: str = ""):
     paths.extend(to_import)
   return paths
 
-def simulate(layers, state, queue, iterations, bands, tiff_metadata, conditions, filepath,  threshold):
-    visited = set()
-    visited.update(queue)
+def simulate(layers,
+             state,
+             queue,
+             visited,
+             iterations,
+             bands,
+             tiff_metadata,
+             conditions,
+             filepath,
+             threshold):
     for i in range(iterations):
         next_round = set()
         while queue:
             node = queue[-1]
             neighbors = pixel_neighbours(state, node)
-            print(len(neighbors))
+            if neighbors is None:
+                queue.pop(-1)
+                continue
             for nei in neighbors:
                 if (nei[0], nei[1]) in visited:
                     continue
@@ -123,7 +134,7 @@ def simulate(layers, state, queue, iterations, bands, tiff_metadata, conditions,
 
 def pixel_neighbours(im, p):
     rows, cols = im.shape
-    i, j = p[0], p[1]
+    i, j = p[1], p[0]
     rmin = i - 1 if i - 1 >= 0 else 0
     rmax = i + 1 if i + 1 < rows else i
     cmin = j - 1 if j - 1 >= 0 else 0
@@ -131,9 +142,12 @@ def pixel_neighbours(im, p):
     neighbours = []
     for x in range(rmin, rmax + 1):
         for y in range(cmin, cmax + 1):
-            neighbours.append([x, y])
-    neighbours.remove([p[0], p[1]])
-    return neighbours
+            neighbours.append([y, x])
+    try:
+        neighbours.remove([p[0], p[1]])
+        return neighbours
+    except:
+        return None
 
 def get_percentage(state):
     return np.sum(state)/(state.shape[0] * state.shape[1])
@@ -145,21 +159,27 @@ def thread_model(bounding_boxes, conditions=CONDITIONS):
         descriptions = reader.descriptions
         state = np.zeros(data.shape)[0]
         queue = []
+        visited = set()
         for bounding_box in bounding_boxes:
             upper_left, lower_right = bounding_box[0], bounding_box[1]
             ly, lx = reader.index(upper_left[0], upper_left[1])
             ry, rx = reader.index(lower_right[0], lower_right[1])
-            state[ly:ry, lx:rx] = 1
-            for i in range(lx,rx):
+            state[ly:ry+1, lx:rx+1] = 1
+            for i in range(lx,rx+1):
                 queue.append((i, ly))
                 queue.append((i, ry))
-            for i in range(ly,ry):
+            for i in range(ly,ry+1):
                 queue.append((lx, i))
                 queue.append((rx, i))
+            for i in range(lx,rx):
+                for j in range(ly,ry):
+                    visited.add((i,j))
+        visited.update(queue)
         simulate(layers=data,
                  state=state,
                  queue=queue,
-                 iterations=3,
+                 visited=visited,
+                 iterations=100,
                  bands=descriptions,
                  tiff_metadata=profile,
                  conditions=conditions,
@@ -209,11 +229,28 @@ def get_sentinel():
     image = dataset.median().clip(NC)
     return image.getMapId(viz)['tile_fetcher'].url_format
 
+def create_bounding_boxes():
+     hogs = pd.read_csv("hog.csv", skiprows=2)
+     hogs = hogs[hogs["Location Lat Num"].notnull()]
+     def get_box(row):
+         lat, lon = row["Location Lat Num"], row["Location Long Num"]
+         upper_left = lon - 0.01, lat + 0.01
+         lower_right = lon + 0.01, lat - 0.01
+         return [upper_left, lower_right]
+     bounding_boxes = hogs.apply(lambda x: get_box(x), axis = 1)
+     bbs= []
+     for bb in bounding_boxes:
+         if all(bb[0]) and all(bb[1]) and bb[0][0] != float('nan'):
+             bbs.append(bb)
+     return bbs
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    bounding_boxes = [[(-79.81, 35.938), (-79.524, 35.661)]]
-    print(get_tile_url(1))
-    print(get_sentinel())
+    #[[(-79.81, 35.938), (-79.524, 35.661)]]
+    bounding_boxes = create_bounding_boxes()
+    print(bounding_boxes)
+    # thread_model(bounding_boxes)
+    # print(get_tile_url(49))
 
 
 
