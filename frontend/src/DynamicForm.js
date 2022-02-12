@@ -40,8 +40,11 @@ class DynamicForm extends React.Component {
     this.setState({ formValues });
   }
 
-  handleSubmit(i, event) {
+  async handleSubmit(i, event) {
     const request = {conditions: JSON.stringify(this.state.formValues)};
+
+    let proccessed = await axios.put("http://localhost:5000/api/process", request)
+      
     axios.put("http://localhost:5000/api/URL", request)
         .then(response => this.props.updateUrl(response.data.url)).catch(error => {
             console.error('There was an error!', error);
@@ -49,7 +52,6 @@ class DynamicForm extends React.Component {
          
   }
 
- 
   render() {
     return (
         <form  onSubmit={this.handleSubmit}>
@@ -101,7 +103,6 @@ class DynamicForm extends React.Component {
               }
             </div>
           ))}
-
 
           <div className="button-section">
             <IconButton style={{color:"green", padding: 15}} variant="contained" color="primary" aria-label="upload picture" component="span" onClick={() => this.addFormFields()}>

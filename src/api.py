@@ -4,16 +4,27 @@ import os
 from flask import Flask, request
 from flask_cors import CORS
 
-from thread import thread_model
+import thread
 
 app = Flask(__name__)
 CORS(app)
 
-URL = "https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/" \
-      "maps/b153ef01dae468946a436c5ddd0a4f19-9a25fb1901b23fa711da1a5a9aa8b36d/" \
-      "tiles/{z}/{x}/{y}"
+DIRECTORY = "gs://" + os.path.join(thread.GCP_BUCKET, thread.FILEPATH)
+
+
+@app.route('/api/process', methods=["PUT"])
+def process():
+  conditions = eval(request.get_json()["conditions"])
+  thread.thread_model(bounding_boxes=thread.create_bounding_boxes(),
+                      conditions=conditions)
+  return {"message": "SUCCESS"}
+
 
 @app.route('/api/URL', methods=["PUT"])
 def get_current_url():
-    return {'url': URL}
+  return {"url": thread.get_tile_url(id=2, directory=DIRECTORY)}
 
+
+@app.route('/api/sentinel', methods=["GET"])
+def get_sentinel_url():
+  return {"url": thread.get_sentinel()}
