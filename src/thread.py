@@ -8,15 +8,22 @@ import google.auth
 import re
 import glob
 import pandas as pd
+import time
 
 credentials, project = google.auth.default()
 
-ee.Initialize()
-CONDITIONS = [{"band": "elv", "rule": "<"}]
+EXAMPLE_CODE = """
+def f(curr, nei):
+  return (curr["elv"] > nei["elv"])
+formula = f
+"""
+
+CONDITIONS = [{"band": ["0_elv"], "rule": EXAMPLE_CODE}]
 FILEPATH = "data/flow"
 RE_BUCKET = re.compile("gs://([^/]+)/(.*)")
 GCP_BUCKET = "nish-earthengine"
 
+ee.Initialize()
 
 
 def get_bounds():
@@ -25,46 +32,83 @@ def get_bounds():
   return NC
 
 
-def export_data():
+def export_data(img=ee.Image("MERIT/Hydro/v1_0_1"), bands=["elv"]):
   NC = get_bounds()
-  dataset = ee.Image(ee.Image("MERIT/Hydro/v1_0_1").clip(NC).select(["elv"]))
+  dataset = ee.Image(img.clip(NC).select(bands))
   task_config = {
       'description': 'FlowElevation',
+      'bucket': GCP_BUCKET,
       'scale': 90,
       'skipEmptyTiles': True,
       "region": NC.geometry().bounds(),
   }
-  task = ee.batch.Export.image.toDrive(dataset, **task_config)
+  task = ee.batch.Export.image.toCloudStorage(dataset, **task_config)
   task.start()
+  return task
+
+
+def poll_earthengine(task):
+  while task.status()['state'] in ['READY', 'RUNNING']:
+    print(task.status())
+    time.sleep(10)
+  else:
+    return task.status()
+
+
+def download_dataset(collections):
+  items = []
+  selected_bands = []
+  for i, (ee_type, collection, bands) in enumerate(collections):
+    for band in bands:
+      selected_bands.append(str(i) + "_" + band)
+    if ee_type == "image":
+      curr_img = ee.Image(collection)
+      items.append(curr_img)
+    else:
+      pass
+  ic = ee.ImageCollection(ee.List(items))
+  img = ic.toBands()
+  return export_data(img, selected_bands)
 
 
 def parse_condition(condition):
   return condition["band"], condition["rule"]
 
 
-def get_band_index(bands, band):
+def get_band_index(bands, band_list):
+  indices = []
   try:
-    pos = bands.index(band)
-    return pos
+    for band in band_list:
+      pos = bands.index(band)
+      indices.append(pos)
+    return indices
   except ValueError as e:
-    raise ValueError("Band does not exist")
+    raise ValueError(f"Band does not exist {band} \n Error: {e}")
 
 
 def satisfy_conditions(node, nei, layers, bands, conditions):
   for condition in conditions:
-    band, rule = parse_condition(condition)
-    pos = get_band_index(bands, band)
-    layer = layers[pos]
+    band_list, rule = parse_condition(condition)
+    positions = get_band_index(bands, band_list)
     try:
       if rule == "<":
+        layer = layers[positions[0]]
         if layer[node[1]][node[0]] > layer[nei[1]][nei[0]]:
           return False
       elif rule == ">":
+        layer = layers[positions[0]]
         if layer[node[1]][node[0]] < layer[nei[1]][nei[0]]:
           return False
       else:
-        continue
-    except:
+        ex_locals = {}
+        exec(rule, None, ex_locals)
+        curr, nei = dict(), dict()
+        for i, band in enumerate(band_list):
+          curr[band] = layers[positions[i]][node[1]][node[0]]
+          nei[band] = layers[positions[i]][nei[1]][nei[0]]
+        if not ex_locals["formula"](curr, nei):
+          return False
+    except Exception as e:
       return False
   return True
 
@@ -76,6 +120,24 @@ def upload_blob(bucket_name, source_file_name, destination_blob_name):
   blob.upload_from_filename(source_file_name)
   print('File {} uploaded to {}.'.format(source_file_name,
                                          destination_blob_name))
+
+
+def get_data(uri):
+  if uri.startswith("gs://"):
+    m = RE_BUCKET.search(uri)
+    if not m:
+      raise ValueError("uri parameter doesn't parse: %s" % uri)
+    bucket_name = m.groups()[0]
+    blob_name = m.groups()[1]
+    bucket = storage.Client().bucket(bucket_name)
+    blob = bucket.blob(blob_name)
+    # It says string, but in python3, it's really bytes.
+    # so convert to a unicode string and return that.
+    blob_bytes = blob.download_as_string()
+    return blob_bytes
+  else:
+    raise ValueError("Not GS Path!")
+  return data
 
 
 def files_in_dir(dir_path: str, extension: str = ""):
@@ -131,6 +193,7 @@ def simulate(layers, state, queue, visited, iterations, bands, tiff_metadata,
     upload_blob(GCP_BUCKET, filepath_with_index, filepath_with_index)
     # yield filepath_with_index
 
+
 def pixel_neighbours(im, p):
   rows, cols = im.shape
   i, j = p[1], p[0]
@@ -156,8 +219,14 @@ def get_percentage(state):
 def thread_model(bounding_boxes,
                  filepath=FILEPATH,
                  conditions=CONDITIONS,
-                 tiff="FlowElevation.tif"):
-  with rasterio.open(tiff, "r") as reader:
+                 tiff="gs://nish-earthengine/FlowElevation.tif"):
+
+  if not os.path.exists(filepath):
+    os.makedirs(filepath)
+  localtif = os.path.join("tiff", os.path.basename(tiff))
+  with open(localtif, "wb") as file_handler:
+    file_handler.write(get_data(tiff))
+  with rasterio.open(localtif, "r") as reader:
     data = reader.read()
     profile = reader.profile
     descriptions = reader.descriptions
@@ -183,7 +252,7 @@ def thread_model(bounding_boxes,
              state=state,
              queue=queue,
              visited=visited,
-             iterations=3,
+             iterations=5,
              bands=descriptions,
              tiff_metadata=profile,
              conditions=conditions,
@@ -216,6 +285,7 @@ def get_tile_url(id, directory="gs://nish-earthengine/data"):
 
 
 def get_sentinel():
+
   def maskS2clouds(image):
     qa = image.select('QA60')
     cloudBitMask = 1 << 10
@@ -239,8 +309,8 @@ def get_sentinel():
   return image.getMapId(viz)['tile_fetcher'].url_format
 
 
-def create_bounding_boxes():
-  hogs = pd.read_csv("hog.csv", skiprows=2)
+def create_bounding_boxes(csvFile):
+  hogs = pd.read_csv(csvFile, skiprows=2)
   hogs = hogs[hogs["Location Lat Num"].notnull()]
 
   def get_box(row):
@@ -259,8 +329,10 @@ def create_bounding_boxes():
 
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO)
-  #[[(-79.81, 35.938), (-79.524, 35.661)]]
-  bounding_boxes = create_bounding_boxes()
-  # print(bounding_boxes)
+  # #[[(-79.81, 35.938), (-79.524, 35.661)]]
+  bounding_boxes = create_bounding_boxes("hog.csv")
+  # # print(bounding_boxes)
   thread_model(bounding_boxes)
-  # print(get_tile_url(49))
+  # # print(get_tile_url(49))
+  # collections = [("image", "MERIT/Hydro/v1_0_1", ["elv"])]
+  # download_dataset(collections)

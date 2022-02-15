@@ -23,9 +23,11 @@ function App() {
     setURL(val);
   });
 
+
+
   return (
     <div className="App">
-      <Stack display= "flex" direction="row" spacing={2} stye={{align_iitems: "center"}}>
+      <Stack display= "flex"  alignItems="center" direction="row" spacing={2} stye={{align_items: "center"}}>
       <MapCard>
         <DynamicForm updateUrl = {updatefunc}></DynamicForm>
         </MapCard>

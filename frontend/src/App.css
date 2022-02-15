@@ -31,15 +31,44 @@
 
 .card_map{
   display: inline-block;
-  margin: 2%;
+  margin: 0%;
+}
+
+.ReactTags__tag {
+  display: "inline-block";
+  margin-right: 2%;
+  padding: 1%
+}
+
+.ReactTags__tagInput {
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.ReactTags__selected span.ReactTags__tag {
+  border: 1px solid #ddd;
+  background: #1876d2;
+  color: white;
+  font-size: 12px;
+  display: inline-block;
+  padding: 5px;
+  margin: 0 5px;
+  border-radius: 2px;
+}
+.ReactTags__selected span.ReactTags__tag:first-child {
+  margin-left: 0px;
+}
+.ReactTags__selected a.ReactTags__remove {
+  color: #aaa;
+  margin-left: 5px;
+  cursor: pointer;
+}
+
+.ReactTags__remove {
+  border: none;
+  cursor: pointer;
+  background: none;
+  color: white;
 }
 
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
