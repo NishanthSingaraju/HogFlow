@@ -1,5 +1,4 @@
 import logo from './logo.svg';
-import './App.css';
 import EarthEngineMap from "./Map.js"
 import DynamicForm from "./DynamicForm"
 import Stack from '@mui/material/Stack';
@@ -23,11 +22,9 @@ function App() {
     setURL(val);
   });
 
-
-
   return (
     <div className="App">
-      <Stack display= "flex"  alignItems="center" direction="row" spacing={2} stye={{align_items: "center"}}>
+      <Stack display= "flex"  alignItems="center" direction="row" spacing={2} style={{align_items: "center"}}>
       <MapCard>
         <DynamicForm updateUrl = {updatefunc}></DynamicForm>
         </MapCard>
