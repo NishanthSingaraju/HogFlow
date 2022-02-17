@@ -31,8 +31,6 @@ class DynamicForm extends React.Component {
     this.handleOpen = this.handleOpen.bind(this)
     this.handleClose = this.handleClose.bind(this)
     this.handleCode = this.handleCode.bind(this)
-    this.timer = null
-    this.progress = 0;
   }
   
   handleChange(i, e) {
@@ -191,15 +189,17 @@ class DynamicForm extends React.Component {
                 </FormControl>
             </Box>
             </Box>
-            : <Card style={{ padding: 2, backgroundColor: "#34eb95"}}><this.styleForRule>{"CUSTOM RULE"}</this.styleForRule></Card>
+            : <Card style={{ padding: 2, backgroundColor: "orange"}}><this.styleForRule>{"CUSTOM RULE"}</this.styleForRule></Card>
           }
 
-
+        
               {
                 index ? 
+                <Box style={{display:"flex", flexDirection:"column nowrap", justifyContent: "space-evenly"}}>
                 <IconButton style={{color:"red"}} variant="contained" color="primary" component="span" onClick={() => this.removeFormFields(index)}>
                   <RemoveCircleIcon/>
                 </IconButton>
+                </Box>
                 : null
               }
             </div>
@@ -207,7 +207,13 @@ class DynamicForm extends React.Component {
           
          
           <div style={{display:"flex", flexDirection:"column nowrap", justifyContent: "space-evenly"}}>
-          <CodeModal index={this.state.formValues.length-1} open={this.state.openCode} handleOpen={this.handleOpen} handleClose={this.handleClose} handleCode={this.handleCode}> </CodeModal>
+          <CodeModal index={this.state.formValues.length-1} 
+            open={this.state.openCode} 
+            handleOpen={this.handleOpen} 
+            handleClose={this.handleClose} 
+            handleCode={this.handleCode}
+            suggestions={this.state.dataOptions} > 
+          </CodeModal>
             <IconButton style={{color:"green", padding: 15}} variant="contained" color="primary" component="span" onClick={() => this.addFormFields()}>
             <AddIcon/>
             </IconButton>

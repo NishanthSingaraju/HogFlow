@@ -9,7 +9,7 @@ import { Card, CardContent } from '@mui/material';
 import IconButton from '@mui/material/IconButton';
 import CodeIcon from '@mui/icons-material/Code';
 import Stack from '@mui/material/Stack';
-import Tag from "./Tags"
+import Tags from "./Tags"
 import { useRef } from 'react';
 
 const style = {
@@ -24,6 +24,7 @@ const style = {
 };
 
 export default function CodeModal(props) {
+    console.log(props.suggestions)
     const [code, setCode] = React.useState(
         `def f(curr, nei): \n  pass\n`
     );
@@ -60,7 +61,7 @@ export default function CodeModal(props) {
         
         <Card sx={style}>
         <Stack display= "flex" direction="column" spacing={2}>
-          <Tag bandRef={setBandRef}></Tag>
+          <Tags suggestions={props.suggestions} bandRef={setBandRef}></Tags>
           <CodeEditor
             value={code}
             language="python"

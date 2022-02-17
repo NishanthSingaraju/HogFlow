@@ -5,6 +5,8 @@ import Stack from '@mui/material/Stack';
 import MapCard from "./MapCard"
 import axios from 'axios'
 import React, { useState, useEffect } from 'react';
+import './App.css';
+import DownloadForm from "./DownloadForm"
 
 
 function App() {
@@ -24,10 +26,12 @@ function App() {
 
   return (
     <div className="App">
-      <Stack display= "flex"  alignItems="center" direction="row" spacing={2} style={{align_items: "center"}}>
+      <Stack display= "flex" alignItems="center" direction="row" spacing={2}>
+        <Stack spacing= {2}>
       <MapCard>
         <DynamicForm updateUrl = {updatefunc}></DynamicForm>
         </MapCard>
+        </Stack>
         {getSentinel && <EarthEngineMap getURL={getURL} getSentinel={getSentinel}></EarthEngineMap>}
       </Stack>
     </div>
