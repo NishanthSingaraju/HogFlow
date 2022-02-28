@@ -1,3 +1,3 @@
 # HogFlow
 
-Simulate Cellular Automata Spread Over Geospacial Data
+Simulate Cellular Automata Spread Over Geospaial Data
